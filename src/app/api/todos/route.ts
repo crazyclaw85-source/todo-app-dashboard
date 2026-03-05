@@ -1,54 +1,28 @@
-import { NextResponse } from 'next/server';
-import db from '@/lib/db';
-import type { Todo } from '@/types/todo';
+import { NextRequest, NextResponse } from 'next/server';
+import { Todo } from '@/types/todo';
+
+const initialTodos: Todo[] = [];
 
 export async function GET() {
-  try {
-    const rows = db.prepare('SELECT * FROM todos ORDER BY created_at DESC').all() as Todo[];
-    // Convert SQLite integer to boolean for the client
-    const todos = rows.map((row) => ({
-      ...row,
-      completed: Boolean(row.completed)
-    }));
-    return NextResponse.json(todos);
-  } catch (error) {
-    console.error('Failed to fetch todos:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch todos' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(initialTodos, { status: 200 });
 }
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { title } = body;
+export async function POST(request: NextRequest) {
+  const { title } = await request.json();
 
-    if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Title is required' },
-        { status: 400 }
-      );
-    }
-
-    const result = db
-      .prepare('INSERT INTO todos (title) VALUES (?)')
-      .run(title.trim());
-
-    const todo = db
-      .prepare('SELECT * FROM todos WHERE id = ?')
-      .get(result.lastInsertRowid) as Todo;
-
-    return NextResponse.json(
-      { ...todo, completed: Boolean(todo.completed) },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Failed to create todo:', error);
-    return NextResponse.json(
-      { error: 'Failed to create todo' },
-      { status: 500 }
-    );
+  if (!title || typeof title !== 'string') {
+    return NextResponse.json({ error: 'Title is required' }, { status: 400 });
   }
+
+  const newTodo: Todo = {
+    id: Date.now(),
+    title,
+    completed: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  initialTodos.push(newTodo);
+
+  return NextResponse.json(newTodo, { status: 201 });
 }
